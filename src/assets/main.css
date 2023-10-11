@@ -10,6 +10,7 @@ input:focus {
   outline: none;
 }
 
+
 button:active {
   transition-duration: 200ms;
   transform: scale(1.03);
@@ -57,4 +58,64 @@ display: block;
   color: #000;
   background: white;
   border: 2px solid #000;
+}
+.Vue-Toastification__toast-body {
+  text-align: center !important;
+  font-weight: 500 !important;
+  font-family: 'Red Hat Display' !important;
+  font-size: 20px !important;
+}
+
+.Vue-Toastification__toast {
+  width: 70% !important;
+  border-radius: 15px !important;
+  padding: 16px 1px !important;
+  min-width: 260px !important;
+  margin: 10px auto !important;
+  min-height: 47px !important;
+}
+.spinner {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 180deg at 50% 50%,
+    rgba(82, 0, 255, 0) 0deg,
+    #ffffff 360deg
+  );
+  animation: spin 1200ms infinite linear;
+}
+.loading {
+    background: #000;
+    color: white;
+    display: flex;
+    border: none;
+    justify-content: space-between;
+    align-items: center;
+}
+.spinner::before {
+  content: "";
+  border-radius: 50%;
+  width: 80%;
+  height: 80%;
+  background-color: #000;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    /* display: none; <- Crashes Chrome on hover */
+    -webkit-appearance: none;
+    margin: 0; /* <-- Apparently some margin are still there even though it's hidden */
+}
+
+input[type=number] {
+    -moz-appearance:textfield; /* Firefox */
 }

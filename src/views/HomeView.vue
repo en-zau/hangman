@@ -13,7 +13,6 @@ import BottomCard from '../components/BottomCard.vue';
         <img src="@/assets/blob1.svg" alt="">
     </div>
     <BottomCard />
-  
 </template>
 
 <style>
