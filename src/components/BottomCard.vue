@@ -34,9 +34,34 @@
   <div class="players">
     <p v-for="player in players" class="player">{{ player.username }}</p>
   </div>
-  <button v-if="this.role === 'creator'" class="btn black">Commencer</button>
+  <button @click="startGame" v-if="this.role === 'creator'" class="btn black">Commencer</button>
   <button disabled v-else class="btn loading">En attente de l'hôte<div class="spinner"></div></button>
 </div>
+<div v-if="currentIndex === 4" class="bottom-card">
+  <p style="margin: 10px 0 0;font-size: 22px;font-style: normal;font-weight: 600;text-align:center">Choisissez une lettre <br ou >deviner le mot!</p>
+  <div class="letters">
+      <button @click="handleClick(letter)" class="letter" v-for="letter in this.game.letters" v-bind::key="letter" >{{ letter }}</button>
+  </div>
+  <button class="btn black">Deviner le mot?</button>
+</div>
+<div v-if="currentIndex === 5" class="bottom-card">
+  <div v-if="currentIndex === 5" class="bottom-card">
+    <p style="margin: 10px 0 0;font-size: 22px;font-style: normal;font-weight: 600;text-align:center">Attendez votre tour...</p>
+    <p style="font-weight: 400;margin: 40px 30px;text-align: center;">C'est à <span class="current-player">{{ this.currentPlayer }}</span> de tenter sa chance...</p>
+    <div class="spinner1"></div>
+  </div>
+</div>
+<div v-if="this.game.currentState === 6" class="modal-lost">
+  <div class="modal-content">
+    <p>{{ gameMsg }}</p>
+    <p>Le mot a trouvé était: {{this.game.wordToGuess}}</p>
+    <p>Définition :</p>
+    <p>{{ this.game.definition }}</p>
+    <button @click="restartGame" v-if="this.role === 'creator'" class="btn black">Rejouer ?</button>
+    <button v-else disabled class="btn loading">En attente de l'hôte<div class="spinner"></div></button>
+  </div>
+</div>
+
 </template>
   
 <script>
@@ -53,9 +78,13 @@ const { socket } = useSocketIO();
         username: '',
         code: '',
         codeIndex: 0,
+        currentPlayer: '',
       }
     },
     computed: {
+      gameMsg() {
+        return this.game.win ? 'Vous avez gagné!' : 'Vous avez perdu...' 
+      },
       currentIndex() {
         return this.game.currentIndex;
       },
@@ -70,10 +99,21 @@ const { socket } = useSocketIO();
       }
     },
     methods: {
+      restartGame() {
+        socket.emit('game:restart', {code: this.game.gameCode})
+      },
+      handleClick(letter) {
+        if(this.game.isMyTurn) {
+          this.game.isMyTurn = false;
+          socket.emit('game:letter', {letter, code: this.game.gameCode})
+        }
+      },
+      startGame() {
+         socket.emit('game:start', {code: this.game.gameCode});
+      },
       handleChange(event) {
         this.code += event.target.value.toString()
         this.codeIndex++;
-        console.log('this.codeIndex :>> ', this.codeIndex);
         if(this.codeIndex  < 5) {  
           const ref = this.$refs['input-' + this.codeIndex];
           ref.focus()
@@ -89,7 +129,6 @@ const { socket } = useSocketIO();
           else if (this.username.length > 14) {
             this.toast.error("Nom d'utilisateur trop long");
           }
-
           this.createGame();
           this.game.changeIndex(index, option);
         }
@@ -98,6 +137,7 @@ const { socket } = useSocketIO();
             const lack = 5 - this.code.length;
             this.toast.error(`Il manque ${lack} chiffre${ lack > 1 ? "s" : ""}`);
           } else {
+            this.game.gameCode = this.code;
             this.joinGame(index, option);
           }
         }
@@ -106,6 +146,7 @@ const { socket } = useSocketIO();
         }
       },
       createGame() {
+        console.log('d');
         const data = {
             username: this.username,
         }
@@ -113,9 +154,58 @@ const { socket } = useSocketIO();
       },
       joinGame(index, code) {
         socket.emit('game:join', {gameCode: code, username: this.game.user.username});
-      }
+      },
     },
     mounted() {
+      socket.on('game:lost', data => {
+        this.game.wordToGuess = data.word;
+        this.game.definition = data.definition
+      })
+
+      socket.on('game:win', data => {
+        this.game.win = true;
+        this.game.wordToGuess = data.word;
+        this.game.definition = data.definition;
+        this.game.currentState = 6;
+      })
+
+      socket.on('game:turn', data => {
+        if(data.username === this.game.user.username) {
+          this.game.isMyTurn = true;
+          this.game.currentIndex = 4;
+          this.currentPlayer = data.username;
+        } else {
+          this.currentPlayer = data.username;
+          this.game.currentIndex = 5;
+        }
+      })
+      socket.on('game:start', data => {
+        this.game.wordLength = data;
+      })
+
+      socket.on('game:restart', data => {
+        this.game.restartGame(data);
+      })
+
+      socket.on('game:letterwin', data => {
+        if(this.currentPlayer === this.username) {
+          this.toast.success(`Vous avez trouvé la lettre ${data.letter}`);
+        } else {
+          this.toast.success(`${this.currentPlayer} a trouvé la lettre ${data.letter}`);
+        }
+        this.game.handleNewLetter(data.indexs, data.letter);
+
+      })
+      socket.on('game:letterlost', data => {
+        if(this.currentPlayer === this.username) {
+          this.toast.warning(`Vous vous êtes trompé avec la lettre ${data}`);
+        } else {
+          this.toast.warning(`${this.currentPlayer} s'est trompé avec la lettre ${data}`);
+        }
+        this.game.handleBadLetter(data);
+        this.game.currentState++;
+      })
+
       socket.on('game:init', (data) => {
         this.game.initGame(data.number, data.player)
       });
@@ -163,6 +253,12 @@ const { socket } = useSocketIO();
   }
 </script>
 <style>
+.current-player {
+  border-radius: 5px;
+  background: #F2F2F2;
+  padding: 2px 5px;
+}
+
 .input-code input{
   border: none;
   background-color: #eeeeee;
@@ -170,6 +266,8 @@ const { socket } = useSocketIO();
   margin: 5px;
   height: 35px;
   border-radius: 4px 4px 0 0;
+  width: 27px;
+  text-align: center;
 }
 .input-code {
   margin-top: 20px;
@@ -216,18 +314,7 @@ color: black;
   font-weight: 600;
   line-height: normal;
 }
-.bottom-card {
-  border-radius: 35px 35px 0px 0px;
-  background: #FFF;
-  box-shadow: 0px 0px 12px 0px rgba(0, 0, 0, 0.25);
-  position: absolute;
-  bottom: 0;
-  height: 300px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-}
+
 
 .two-buttons {
   margin-top: 15px;
@@ -235,6 +322,31 @@ color: black;
 flex-direction: column;
 align-items: flex-start;
 gap: 15px;
+}
+.game {
+  position: relative;
+}
+.letters {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 14px;
+}
+.letter {
+  border: none;
+  border-radius: 4px;
+  background: #FFF;
+  box-shadow: 0px 0px 4px 0px rgba(0, 0, 0, 0.20);
+  padding: 0 6px;
+  text-align: center;
+  font-family: 'Red Hat Display', sans-serif;
+  font-size: 22px;
+  font-style: normal;
+  font-weight: 600;
+  margin: 5px;
+  color: black;
+  min-width: 28px;
 }
 </style>
   
