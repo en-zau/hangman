@@ -13,7 +13,7 @@ const app = createApp(App);
 
 const options = {
     position: "top-center",
-    timeout: 3500,
+    timeout: 1500,
     closeOnClick: true,
     pauseOnFocusLoss: true,
     pauseOnHover: true,
