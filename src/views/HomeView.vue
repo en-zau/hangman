@@ -1,5 +1,5 @@
 <script>
-import BottomCard from '../components/bottomcard.vue';
+import BottomCard from '../components/BottomCard.vue';
 import { useGame } from '@/stores/game';
 
 export default {
